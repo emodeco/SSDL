@@ -7,7 +7,7 @@ This repository hosts the code for the following manuscript: Cross-task, explain
 
 # Code Structure
 
-The model fitting and prediction functions are included under /model 
+The model fitting and prediction functions are included under ./model 
 
 
 # Licence
