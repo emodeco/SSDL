@@ -9,7 +9,7 @@ This repository hosts the code for the following manuscript: Cross-task, explain
 
 We developed the self-supervised deep learning models that achieved fine-grained decoding of continuous valence and arousal values.
 
-The model fitting and prediction scripts are included under ./model 
+The model fitting, prediction and evaluation scripts are included under ./model 
 
 
 # Licence
