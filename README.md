@@ -5,7 +5,7 @@ This repository contains scripts for decoding emotion states from intracranial n
 
 This repository hosts the code for the following manuscript: Cross-task, explainable, and real-time decoding of human emotion states by integrating grey and white matter intracranial neural activity.
 
-# Code Structure
+# Code structure
 
 We developed the self-supervised deep learning models that achieved fine-grained decoding of continuous valence and arousal values.
 
