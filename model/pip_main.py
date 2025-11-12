@@ -290,7 +290,7 @@ if __name__ == '__main__':
     print(f"Outer fold cc mean: {np.nanmean(outer_fold_ccs):.4f} ± {np.nanstd(outer_fold_ccs):.4f}")
     print(f"Inner fold MSE mean (best params): {np.nanmean(inner_fold_mses):.4f} ± {np.nanstd(inner_fold_mses):.4f}")
     print(f"Inner fold cc mean (best params): {np.nanmean(inner_fold_ccs):.4f} ± {np.nanstd(inner_fold_ccs):.4f}")
-    print(f"All data cc: {cc_all:.4f}")
+    print(f"All data cvCC: {cc_all:.4f}")
     print(f"All data MSE: {mse_all:.4f}")
     print(f"All data shape: {all_val_true.shape}")
 
