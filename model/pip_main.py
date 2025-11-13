@@ -2,6 +2,8 @@ import numpy as np
 import scipy.io
 from sklearn.model_selection import KFold, ParameterGrid
 from sklearn.feature_selection import SelectKBest, f_regression
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import r2_score
 import torch
 from skorch import NeuralNetRegressor
 from skorch.callbacks import EarlyStopping as SEarlyStopping
@@ -74,7 +76,7 @@ if __name__ == '__main__':
 
     outer_fold_ccs = []
     inner_fold_ccs = []     
-    inner_fold_mses = []   
+    inner_fold_r2s = []   
     param_selection_mses = []
 
     for outer_fold, (outer_train_idx, outer_test_idx) in enumerate(outer_kf.split(idx)):
@@ -85,18 +87,20 @@ if __name__ == '__main__':
         trial_segments_train = [trial_segments[i] for i in outer_train_idx]
         trial_segments_test = [trial_segments[i] for i in outer_test_idx]
 
-        y_outer_train = y_outer_train_raw
-        y_outer_test = y_outer_test_raw
+        y_scaler_outer = StandardScaler()
+        y_outer_train = y_scaler_outer.fit_transform(y_outer_train_raw.reshape(-1, 1)).ravel()
+        y_outer_test = y_scaler_outer.transform(y_outer_test_raw.reshape(-1, 1)).ravel()
 
         inner_kf = KFold(n_splits=inner_cv_splits, shuffle=True, random_state=seednum)
         best_score = np.inf
         best_params = None
         best_mean_cc_for_record = None
-        best_mean_mse_for_record = None
+        best_mean_r2_for_record = None
 
         for params in param_list:
             inner_scores = []
             inner_ccs = []
+            inner_r2s = []
 
             for inner_train_idx, inner_val_idx in inner_kf.split(X_outer_train):
 
@@ -105,8 +109,9 @@ if __name__ == '__main__':
                 trials_inner_train = [trial_segments_train[i] for i in inner_train_idx]
                 trials_inner_val = [trial_segments_train[i] for i in inner_val_idx]
 
-                y_inner_train = y_inner_train_raw
-                y_inner_val = y_inner_val_raw
+                y_scaler_inner = StandardScaler()
+                y_inner_train = y_scaler_inner.fit_transform(y_inner_train_raw.reshape(-1, 1)).ravel()
+                y_inner_val = y_scaler_inner.transform(y_inner_val_raw.reshape(-1, 1)).ravel()
 
                 selector = SelectKBest(score_func=f_regression, k=params['k'])
                 X_inner_train_selected_mean = selector.fit_transform(X_inner_train, y_inner_train.ravel())
@@ -174,10 +179,12 @@ if __name__ == '__main__':
                     X_inner_train_encoded_trial_mean.astype(np.float32),
                     y_inner_train.ravel().astype(np.float32).reshape(-1, 1)
                 )
-                y_val_pred = mlp.predict(X_inner_val_encoded_trial_mean.astype(np.float32)).ravel()
-                y_val_true = y_inner_val.ravel()
+                y_val_pred_scaled = mlp.predict(X_inner_val_encoded_trial_mean.astype(np.float32)).ravel()
+                y_val_pred = y_scaler_inner.inverse_transform(y_val_pred_scaled.reshape(-1, 1)).ravel()
+                y_val_true = y_inner_val_raw.ravel()
 
                 mse = mean_squared_error(y_val_true, y_val_pred)
+                r2 = r2_score(y_val_true, y_val_pred)
                 try:
                     cc, _ = pearsonr(y_val_true, y_val_pred)
                 except Exception:
@@ -185,20 +192,22 @@ if __name__ == '__main__':
 
                 inner_scores.append(mse)
                 inner_ccs.append(cc)
-                print(f"Params {params}, Inner MSE: {mse:.4f}, cc: {cc:.4f}")
+                inner_r2s.append(r2)
+                print(f"Params {params}, Inner R2: {r2:.4f}, cc: {cc:.4f}")
 
             mean_score = float(np.nanmean(inner_scores))
             mean_cc = float(np.nanmean(inner_ccs))
+            mean_r2 = float(np.nanmean(inner_r2s))
             if mean_score < best_score:
                 best_score = mean_score
                 best_params = params
                 best_mean_cc_for_record = mean_cc
-                best_mean_mse_for_record = mean_score
+                best_mean_r2_for_record = mean_r2
 
-        print(f"Outer Fold {outer_fold + 1} best params: {best_params}, min MSE: {best_score:.4f}")
+        print(f"Outer Fold {outer_fold + 1} best params: {best_params}")
 
         inner_fold_ccs.append(best_mean_cc_for_record)
-        inner_fold_mses.append(best_mean_mse_for_record)
+        inner_fold_r2s.append(best_mean_r2_for_record)
         param_selection_mses.append(best_score)
 
         selector = SelectKBest(score_func=f_regression, k=best_params['k'])
@@ -263,8 +272,9 @@ if __name__ == '__main__':
             y_outer_train.ravel().astype(np.float32).reshape(-1, 1)
         )
 
-        y_pred = mlp.predict(X_test_encoded_trial_mean.astype(np.float32)).ravel()
-        y_true = y_outer_test.ravel()
+        y_pred_scaled = mlp.predict(X_test_encoded_trial_mean.astype(np.float32)).ravel()
+        y_pred = y_scaler_outer.inverse_transform(y_pred_scaled.reshape(-1, 1)).ravel()
+        y_true = y_outer_test_raw.ravel()
 
         all_val_pred.append(y_pred)
         all_val_true.append(y_true)
@@ -282,16 +292,15 @@ if __name__ == '__main__':
         cc_all, _ = pearsonr(all_val_true, all_val_pred)
     except Exception:
         cc_all = np.nan
-    mse_all = mean_squared_error(all_val_true, all_val_pred)
+    r2_all = r2_score(all_val_true, all_val_pred)
 
     print("\n" + "=" * 50)
     print("Final evaluation results")
     print("=" * 50)
     print(f"Outer fold cc mean: {np.nanmean(outer_fold_ccs):.4f} ± {np.nanstd(outer_fold_ccs):.4f}")
-    print(f"Inner fold MSE mean (best params): {np.nanmean(inner_fold_mses):.4f} ± {np.nanstd(inner_fold_mses):.4f}")
     print(f"Inner fold cc mean (best params): {np.nanmean(inner_fold_ccs):.4f} ± {np.nanstd(inner_fold_ccs):.4f}")
     print(f"All data cvCC: {cc_all:.4f}")
-    print(f"All data MSE: {mse_all:.4f}")
+    print(f"All data R2: {r2_all:.4f}")
     print(f"All data shape: {all_val_true.shape}")
 
     scipy.io.savemat(dataname + output_suffix, mdict={'label': all_val_true, 'predict': all_val_pred})
