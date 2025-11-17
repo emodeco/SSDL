@@ -20,7 +20,7 @@ We designed a self-supervised learning model structure that mainly consists of t
 
 **(3) Supervised emotion state prediction.** After training the LSTM autoencoder, we only used the encoder part to compute the hidden state h_t at each time step t. We then averaged the hidden representations across all time steps within the trial as s_n. We then related the hidden representation s_n  to the valence/arousal rating in that trial, i.e., y_n, via a two-layer multi-layer perceptron (MLP) regressor for fine-grained prediction of continuous valence/arousal ratings. To classify coarse-grained discretized valence and arousal states, we first transformed the continuous valence or arousal ratings into discrete categories. Similar to the emotion state prediction decoder, we used a two-layer MLP classifier. 
 
-The model fitting, prediction and evaluation scripts are included under [./model](./model)
+Scripts for model construction, fitting, prediction, evaluation, and visualization are included in the [./model](./model)
 
 
 # Licence
